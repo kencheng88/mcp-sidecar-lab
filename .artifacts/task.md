@@ -1,0 +1,60 @@
+# Task: Dockerize and Setup K8s Deployment for MCP Sidecar Lab
+
+- [x] Project Exploration and Planning
+    - [x] Identify project types (Java/Maven)
+    - [x] Analyze `biz` and `mcp-server-sidecar` `pom.xml`
+- [x] Dockerization
+    - [x] Create `Dockerfile` for `biz`
+    - [x] Create `Dockerfile` for `mcp-server-sidecar`
+- [x] Kubernetes Setup
+    - [x] Create `deployment.yml` for unified Pod deployment
+    - [x] Create `service.yml`
+- [x] Documentation
+    - [x] Create `README.md` for `biz`
+    - [x] Create `README.md` for `mcp-server-sidecar`
+    - [x] Create root `README.md` for the lab (optional but good)
+- [x] Verification
+    - [x] Verify Docker builds (dry run)
+    - [x] Verify K8s manifests
+- [x] Architecture Design: Remote Registration
+    - [x] Explain Remote Registration concepts
+    - [x] Design Registration Flow
+    - [x] Design Central MCP Gateway
+- [x] Documentation Translation
+    - [x] Translate all READMEs to Traditional Chinese
+    - [x] Translate Walkthrough to Traditional Chinese
+    - [x] Translate Design Document to Traditional Chinese
+- [x] Create MCP Gateway Lab
+    - [x] Create `mcp-gateway` Maven project
+    - [x] Create `biz` Maven project (Centralized version)
+    - [x] Create `Dockerfile`s
+    - [x] Create K8s manifests (Separate Deployments)
+    - [x] Create documentation
+- [x] Upgrade Spring AI to 1.1.2
+    - [x] Update `mcp-server-sidecar/pom.xml`
+    - [x] Update `mcp-gateway/pom.xml`
+    - [x] Verify compilation
+- [x] Implement Database-Driven Tool Registration
+    - [x] Create Dynamic Tool Definition Model
+    - [x] Implement Generic Tool Executor
+    - [x] Update `McpConfig.java` for Dynamic Registration
+    - [x] Comment out Legacy Tool Logic in `BizTools.java`
+- [x] Put `mcp_sidecar_lab` under Git version control
+    - [x] Create `.gitignore`
+    - [x] Initialize Git and make initial commit
+    - [x] Push to GitHub repository
+- [x] Update project documentation
+    - [x] Update root `README.md` with exciting features
+    - [x] Update `mcp-server-sidecar/README.md` with dynamic registration design
+    - [x] Add Native Image compilation instructions to Sidecar README
+    - [x] Add `k8s/README.md` and comments to YAML manifests
+    - [x] Create formal `design_remote_dynamic_update.md` artifact
+- [x] Differentiate JVM and Native Build Options
+    - [x] Create separate `Dockerfile` (JVM) and `Dockerfile.native` (Native)
+    - [x] Update README with instructions for both modes
+- [x] Configure K8s resource limits
+    - [x] Add requests/limits to `deployment.yml`
+- [x] Support GraalVM Native Image
+    - [x] Update `mcp-server-sidecar/pom.xml` with Native Build Plugin
+    - [x] Update `Dockerfile` for Multi-stage Native Build
+    - [x] Add Runtime Hints if necessary (Verified AOT process)
