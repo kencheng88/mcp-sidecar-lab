@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-sidecar-lab
+  labels:
+    app: mcp-sidecar-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-sidecar-lab
+  template:
+    metadata:
+      labels:
+        app: mcp-sidecar-lab
+    spec:
+      containers:
+      - name: biz
+        image: biz:latest
+        imagePullPolicy: Never # For local development/testing
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      - name: mcp-server-sidecar
+        image: mcp-server-sidecar:latest
+        imagePullPolicy: Never # For local development/testing
+        ports:
+        - containerPort: 8081
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
