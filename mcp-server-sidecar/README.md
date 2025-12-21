@@ -23,6 +23,25 @@ docker build -t mcp-server-sidecar:latest .
 - **Transport**: `SSE` (Server-Sent Events)
 - **Endpoint**: `http://localhost:8081/mcp/sse`
 
-### 提供的工具 (Tools)
-- `getBusinessInfo`: 透過轉發請求至 `biz` 服務取得業務資訊。
-- `calculate`: 透過轉發請求至 `biz` 服務執行加法運算。
+---
+
+## 🏗 動態註冊架構 (Dynamic Registration Architecture)
+
+本專案採用了先進的 **資料庫驅動 (Database-Driven)** 工具註冊設計，而非傳統的靜態代碼定義。
+
+### 1. 設計核心
+*   **配置與邏輯分離**：工具的名稱、描述、JSON Schema 及目標 API URL 皆存儲於資料庫（目前為 `McpConfig` 中的 `SIMULATED_DB`）。
+*   **通用執行器 (Generic Executor)**：實作了一個統一的 `ToolCallback` 處理器，能動態解析參數並轉發至對應的業務服務端點。
+*   **執行流程**：
+    1.  啟動時，`McpConfig` 掃描資料庫中的工具定義。
+    2.  為每個定義實例化一個 `FunctionToolCallback`。
+    3.  當 AI 呼叫工具時，通用執行器根據模板填入參數並完成 `RestTemplate` 請求。
+
+### 2. 優勢
+*   **零代碼更新 (Zero-code Updates)**：新增工具僅需更新資料庫記錄，無需重啟及重新編譯。
+*   **描述動態化**：可以根據環境或需求，隨時調整給 AI 看的工具描述。
+
+### 3. 目前註冊的動態工具 (模擬自資料庫)
+*   **`getBusinessInfo`**: 取得業務等級資訊。
+*   **`calculate`**: 執行加法運算。
+*   **`checkHealth`**: 監控業務服務狀態。
