@@ -11,18 +11,20 @@
 ## 如何編譯
 
 ### 1. 標準 JAR 編譯 (JVM 模式)
+這是最穩定的模式，建議用於開發階段與快速除錯。
 ```bash
+# 使用預設 Dockerfile
 docker build -t mcp-server-sidecar:latest .
 ```
 
 ### 2. 原生編譯 (Native Image 模式)
-本專案支援使用 GraalVM 編譯為原生二進位檔，以獲得極速啟動與極低記憶體占用。
+針對生產環境優化，提供極低記憶體占用 (約 80Mi) 與極速啟動。
 ```bash
 # 使用 Maven 直接編譯 (需安裝 GraalVM)
 ./mvnw -Pnative native:compile
 
-# 使用 Docker 進行多階段原生編譯 (推薦)
-docker build -t mcp-server-sidecar:native .
+# 使用 Docker 進行多階段原生編譯 (推薦，需使用特定 Dockerfile)
+docker build -t mcp-server-sidecar:native -f Dockerfile.native .
 ```
 
 ## 本地執行

@@ -1,23 +1,13 @@
-# Build stage (Using GraalVM for native compilation)
-FROM ghcr.io/graalvm/native-image-community:17-ol9 AS build
+# Build stage (Standard JVM)
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
-
-# Install Maven (simplified for this demo, usually pre-installed in maven images)
-RUN microdnf install -y maven
-
 COPY pom.xml .
 COPY src ./src
+RUN mvn clean package -DskipTests
 
-# Build the native binary
-RUN mvn -Pnative native:compile -DskipTests
-
-# Run stage
-FROM debian:bookworm-slim
+# Run stage (JRE)
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
-
-# Copy the native executable from the build stage
-COPY --from=build /app/target/mcp-server-sidecar mcp-server-sidecar
-
+COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8081
-# Run the native binary directly
-ENTRYPOINT ["./mcp-server-sidecar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
