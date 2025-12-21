@@ -9,8 +9,20 @@
 - **Port**: `8081` (已設定為避免與 `8080` 上的 `biz` 服務衝突)
 
 ## 如何編譯
+
+### 1. 標準 JAR 編譯 (JVM 模式)
 ```bash
 docker build -t mcp-server-sidecar:latest .
+```
+
+### 2. 原生編譯 (Native Image 模式)
+本專案支援使用 GraalVM 編譯為原生二進位檔，以獲得極速啟動與極低記憶體占用。
+```bash
+# 使用 Maven 直接編譯 (需安裝 GraalVM)
+./mvnw -Pnative native:compile
+
+# 使用 Docker 進行多階段原生編譯 (推薦)
+docker build -t mcp-server-sidecar:native .
 ```
 
 ## 本地執行
