@@ -5,7 +5,7 @@ metadata:
   labels:
     app: mcp-sidecar-lab
 spec:
-  replicas: 1
+  replicas: 1 # 維持單一實例以利快速開發
   selector:
     matchLabels:
       app: mcp-sidecar-lab
@@ -15,22 +15,25 @@ spec:
         app: mcp-sidecar-lab
     spec:
       containers:
+      # --- 業務微服務 (Main Business Container) ---
       - name: biz
         image: biz:latest
-        imagePullPolicy: Never # For local development/testing
+        imagePullPolicy: Never # 優先使用本地已編譯的映像檔
         ports:
-        - containerPort: 8080
+        - containerPort: 8080 # 業務服務啟動於 8080
         livenessProbe:
           httpGet:
             path: /actuator/health
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
+      
+      # --- MCP Server Sidecar (Sidecar Container) ---
       - name: mcp-server-sidecar
         image: mcp-server-sidecar:latest
-        imagePullPolicy: Never # For local development/testing
+        imagePullPolicy: Never # 優先使用本地已編譯的映像檔
         ports:
-        - containerPort: 8081
+        - containerPort: 8081 # MCP 伺服器啟動於 8081 以避免與 8080 衝突
         livenessProbe:
           httpGet:
             path: /actuator/health

@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: biz-service
+  name: biz-service # 此服務主要負責對外曝露業務邏輯介面
 spec:
   selector:
     app: mcp-sidecar-lab
   ports:
     - protocol: TCP
-      port: 80
-      targetPort: 8080
-  type: LoadBalancer
+      port: 80          # 外部存取 Port
+      targetPort: 8080  # 轉發至 Pod 內的 biz 容器 (8080)
+  type: LoadBalancer    # 在雲端環境中自動建立負載均衡器
