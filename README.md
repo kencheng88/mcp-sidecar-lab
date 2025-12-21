@@ -18,7 +18,9 @@
 - **/biz**: 主要業務微服務 (Spring Boot, Port 8080)
 - **/mcp-server-sidecar**: MCP Server Sidecar (Spring Boot, Port 8081)
 - **/k8s**: 用於部署的 Kubernetes Manifests
+- **.artifacts/**: 專案開發歷程紀錄 (Task, Implementation Plan, Walkthrough)
 - **design_remote_registration.md**: 深入探討遠端註冊架構的技術文檔
+- **design_remote_dynamic_update.md**: 遠端動態更新架構設計
 
 ## 🚀 部署策略
 
@@ -39,3 +41,9 @@
    kubectl apply -f k8s/deployment.yml
    kubectl apply -f k8s/service.yml
    ```
+
+## 🔮 未來展望 (Future Tasks)
+
+*   **🔒 安全加固**：在 Sidecar 中加入 API Key 或 Token 校驗，確保只有授權的 AI 客戶端能調用工具。
+*   **💾 真實 DB 整合**：將目前的 `SIMULATED_DB` 替換為 Redis 或 SQLite，實現持久化且更具規模感的工具管理。
+*   **🔄 遠端動態更新**：透過監聽配置中心（如 Spring Cloud Config 或 Kubernetes ConfigMap）來實現在不重啟服務的情況下，在線更新工具描述與定義。
