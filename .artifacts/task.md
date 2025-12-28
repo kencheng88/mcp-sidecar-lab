@@ -39,7 +39,7 @@
     - [x] Implement Generic Tool Executor
     - [x] Update `McpConfig.java` for Dynamic Registration
     - [x] Comment out Legacy Tool Logic in `BizTools.java`
-- [x] Put `mcp_sidecar_lab` under Git version control
+- [x] Put `mcp-sidecar-lab` under Git version control
     - [x] Create `.gitignore`
     - [x] Initialize Git and make initial commit
     - [x] Push to GitHub repository

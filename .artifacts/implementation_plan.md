@@ -5,31 +5,31 @@ This plan outlines the steps to containerize the `biz` microservice and the `mcp
 ## Proposed Changes
 
 ### Configuration
-#### [MODIFY] [application.properties](file:///Users/kencheng/Documents/lab/mcp_sidecar_lab/mcp-server-sidecar/src/main/resources/application.properties)
+#### [MODIFY] [application.properties](file:///Users/kencheng/Documents/lab/mcp-sidecar-lab/mcp-server-sidecar/src/main/resources/application.properties)
 - Change `server.port` to `8081` to avoid conflict with the `biz` service (defaulting to `8080`) when running in the same Pod.
 
 ---
 
-### [biz](file:///Users/kencheng/Documents/lab/mcp_sidecar_lab/biz)
-#### [NEW] [Dockerfile](file:///Users/kencheng/Documents/lab/mcp_sidecar_lab/biz/Dockerfile)
+### [biz](file:///Users/kencheng/Documents/lab/mcp-sidecar-lab/biz)
+#### [NEW] [Dockerfile](file:///Users/kencheng/Documents/lab/mcp-sidecar-lab/biz/Dockerfile)
 - Multi-stage Dockerfile to build and package the Maven project.
-#### [NEW] [README.md](file:///Users/kencheng/Documents/lab/mcp_sidecar_lab/biz/README.md)
+#### [NEW] [README.md](file:///Users/kencheng/Documents/lab/mcp-sidecar-lab/biz/README.md)
 - Description of the business microservice.
 
 ---
 
-### [mcp-server-sidecar](file:///Users/kencheng/Documents/lab/mcp_sidecar_lab/mcp-server-sidecar)
-#### [NEW] [Dockerfile](file:///Users/kencheng/Documents/lab/mcp_sidecar_lab/mcp-server-sidecar/Dockerfile)
+### [mcp-server-sidecar](file:///Users/kencheng/Documents/lab/mcp-sidecar-lab/mcp-server-sidecar)
+#### [NEW] [Dockerfile](file:///Users/kencheng/Documents/lab/mcp-sidecar-lab/mcp-server-sidecar/Dockerfile)
 - Multi-stage Dockerfile to build and package the Maven project.
-#### [NEW] [README.md](file:///Users/kencheng/Documents/lab/mcp_sidecar_lab/mcp-server-sidecar/README.md)
+#### [NEW] [README.md](file:///Users/kencheng/Documents/lab/mcp-sidecar-lab/mcp-server-sidecar/README.md)
 - Description of the MCP sidecar server.
 
 ---
 
-### [Kubernetes Manifests](file:///Users/kencheng/Documents/lab/mcp_sidecar_lab/k8s)
-#### [NEW] [deployment.yml](file:///Users/kencheng/Documents/lab/mcp_sidecar_lab/k8s/deployment.yml)
+### [Kubernetes Manifests](file:///Users/kencheng/Documents/lab/mcp-sidecar-lab/k8s)
+#### [NEW] [deployment.yml](file:///Users/kencheng/Documents/lab/mcp-sidecar-lab/k8s/deployment.yml)
 - Kubernetes Deployment featuring a single Pod with two containers: `biz` and `mcp-server-sidecar`.
-#### [NEW] [service.yml](file:///Users/kencheng/Documents/lab/mcp_sidecar_lab/k8s/service.yml)
+#### [NEW] [service.yml](file:///Users/kencheng/Documents/lab/mcp-sidecar-lab/k8s/service.yml)
 - Kubernetes Service to expose the `biz` microservice.
 
 ## Verification Plan
