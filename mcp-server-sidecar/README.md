@@ -39,23 +39,37 @@ docker build -t mcp-server-sidecar:native -f Dockerfile.native .
 
 ---
 
-## 🏗 動態註冊架構 (Dynamic Registration Architecture)
+## 🏗 動態工具發現架構 (Dynamic Tool Discovery)
 
-本專案採用了先進的 **資料庫驅動 (Database-Driven)** 工具註冊設計，而非傳統的靜態代碼定義。
+本專案實作了自動化的 **OpenAPI to MCP** 轉換器，能將任何 REST 服務轉化為 AI 工具。
 
-### 1. 設計核心
-*   **配置與邏輯分離**：工具的名稱、描述、JSON Schema 及目標 API URL 皆存儲於資料庫（目前為 `McpConfig` 中的 `SIMULATED_DB`）。
-*   **通用執行器 (Generic Executor)**：實作了一個統一的 `ToolCallback` 處理器，能動態解析參數並轉發至對應的業務服務端點。
-*   **執行流程**：
-    1.  啟動時，`McpConfig` 掃描資料庫中的工具定義。
-    2.  為每個定義實例化一個 `FunctionToolCallback`。
-    3.  當 AI 呼叫工具時，通用執行器根據模板填入參數並完成 `RestTemplate` 請求。
+### 1. 核心流程
+1.  **OpenAPI 掃描**：啟動時，Sidecar 會從 `target.api.url` (如 `biz` 服務) 抓取 `v3/api-docs`。
+2.  **語義映射 (Semantic Mapping)**：
+    *   讀取 `src/main/resources/mcp-mapping.json`。
+    *   **優先權 1**：如果映射檔有定義，則使用映射檔中的 `toolName`、描述與參數說明。
+    *   **優先權 2**（退而求其次）：如果映射檔未定義，則嘗試抓取 OpenAPI 中的 `@Operation` 與 `@Parameter` 註解內容。
+3.  **自動註冊**：利用 `DynamicToolRegistry` 將解析出的規格轉化為 Spring AI 標準的 `SyncToolSpecification`。
 
 ### 2. 優勢
-*   **零代碼更新 (Zero-code Updates)**：新增工具僅需更新資料庫記錄，無需重啟及重新編譯。
-*   **描述動態化**：可以根據環境或需求，隨時調整給 AI 看的工具描述。
+*   **零代碼維護**：當 Legacy 系統新增 API 時，Sidecar 只要重啟即可自動識別，無需撰寫 Java 代碼。
+*   **AI 友好化**：透過 `mcp-mapping.json`，您可以將工程化的 API 名稱 (如 `getBizInfo`) 改為 AI 更易理解的語法 (如 `get_enterprise_info`)。
 
-### 3. 目前註冊的動態工具 (模擬自資料庫)
-*   **`getBusinessInfo`**: 取得業務等級資訊。
-*   **`calculate`**: 執行加法運算。
-*   **`checkHealth`**: 監控業務服務狀態。
+## 🧪 測試與驗證
+
+### 1. 使用 MCP Inspector
+這是最推薦的測試方式：
+```bash
+npx @modelcontextprotocol/inspector --transport sse --server-url http://localhost:8081/mcp/sse
+```
+*   進入 `http://localhost:5173` 後點選 **"List Tools"** 即可看到動態註冊的工具。
+
+### 2. 目前已啟用的工具 (範例)
+*   **`calculate_sum`**: 執行加法運算 (映射自 `/api/calculate`)。
+*   **`get_enterprise_info`**: 取得企業等級資訊 (映射自 `/api/business-info`)。
+
+---
+
+## 🛠 開發說明
+*   **CORS 配置**：目前的專案配置了寬鬆的 `CorsFilter`，僅供開發與 MCP Inspector 測試使用。
+*   **循環依賴**：`RestTemplate` 已定義於主類別中，避免與 `McpConfig` 產生啟動衝突。
