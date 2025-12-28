@@ -15,7 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.InputStream;
 import java.util.*;
@@ -25,15 +25,16 @@ public class OpenApiScannerService {
 
     private static final Logger log = LoggerFactory.getLogger(OpenApiScannerService.class);
 
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final ResourceLoader resourceLoader;
 
     @Value("${target.api.url}")
     private String targetApiUrl;
 
-    public OpenApiScannerService(RestTemplate restTemplate, ObjectMapper objectMapper, ResourceLoader resourceLoader) {
-        this.restTemplate = restTemplate;
+    public OpenApiScannerService(WebClient.Builder webClientBuilder, ObjectMapper objectMapper,
+            ResourceLoader resourceLoader) {
+        this.webClient = webClientBuilder.build();
         this.objectMapper = objectMapper;
         this.resourceLoader = resourceLoader;
     }
@@ -47,10 +48,14 @@ public class OpenApiScannerService {
     public List<ToolDefinition> scanAndMap() {
         List<ToolDefinition> results = new ArrayList<>();
         try {
-            // 1. 獲取 OpenAPI JSON
+            // 1. 獲取 OpenAPI JSON (同步阻塞以進行啟動時註冊)
             String openApiUrl = targetApiUrl + "/v3/api-docs";
             log.info("正在從 {} 獲取 OpenAPI 定義...", openApiUrl);
-            String openApiJson = restTemplate.getForObject(openApiUrl, String.class);
+            String openApiJson = webClient.get()
+                    .uri(openApiUrl)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
 
             SwaggerParseResult parseResult = new OpenAPIV3Parser().readContents(openApiJson);
             OpenAPI openAPI = parseResult.getOpenAPI();

@@ -7,15 +7,11 @@ import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
 import java.util.Map;
 
-@Service
 public class BizTools {
 
-    private final RestTemplate restTemplate;
     private final String BIZ_SERVICE_URL = "http://localhost:8080";
 
-    public BizTools(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
+    // [Legacy Declarative/Programmatic Tools]
 
     /*
      * // [Legacy Declarative/Programmatic Tools]

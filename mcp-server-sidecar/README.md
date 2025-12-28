@@ -70,6 +70,19 @@ npx @modelcontextprotocol/inspector --transport sse --server-url http://localhos
 
 ---
 
-## 🛠 開發說明
-*   **CORS 配置**：目前的專案配置了寬鬆的 `CorsFilter`，僅供開發與 MCP Inspector 測試使用。
-*   **循環依賴**：`RestTemplate` 已定義於主類別中，避免與 `McpConfig` 產生啟動衝突。
+## 🚀 未來展望與生產環境強化 (Future Outlook)
+
+為了將此 Sidecar 投入嚴格的生產環境，以下是計畫中與建議的技術強化方向：
+
+- [x] **⚡️ WebFlux 反應式架構**：已完成。支援高併發與非阻塞通訊。
+- [ ] **🛡 安全性增強 (Security)**
+    - [ ] **動態 CORS 配置**：將目前的 `addAllowedOrigin("*")` 改為從環境變數注入。
+    - [ ] **API 身份驗證**：實作 API Key 或 JWT 驗證，防止未授權存取。
+    - [ ] **K8s NetworkPolicy**：在網路層級鎖定僅允許特定 Pod 連線。
+    - [ ] **Service Mesh (Istio)**：利用 mTLS 與 AuthorizatonPolicy 實現加密通訊。
+- [ ] **🚀 效能優化 (Performance)**
+    - [ ] **Streaming Discovery**：優化巨型系統的 OpenAPI 掃描流程為全異步。
+    - [ ] **連線池調優**：優化 `WebClient` 的 Connection Pool 配置。
+- [ ] **📊 可觀測性 (Observability)**
+    - [ ] **OpenTelemetry 整合**：追蹤 MCP 指令的全鏈路 Trace。
+    - [ ] **Prometheus Metrics**：監控工具呼叫延遲、成功率與併發數。
