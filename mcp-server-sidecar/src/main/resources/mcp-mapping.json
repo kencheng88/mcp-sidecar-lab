@@ -1,0 +1,17 @@
+{
+    "mappings": [
+        {
+            "operationId": "getBusinessInfo",
+            "toolName": "get_enterprise_info",
+            "description": "獲取企業業務資訊，包含目前的服務等級與狀態描述。",
+            "parameters": {
+                "level": "業務等級 (例如：standard, premium, vip)"
+            }
+        },
+        {
+            "operationId": "calculate",
+            "toolName": "calculate_sum",
+            "description": "將兩個數字相加，用於基礎運算。"
+        }
+    ]
+}
