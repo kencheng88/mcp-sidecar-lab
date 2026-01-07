@@ -1,108 +1,219 @@
 package com.example.mcpserversidecar;
 
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class WebFluxMcpIntegrationTest {
 
-        @Test
-        public void testMcpFlow() {
-                WebClient client = WebClient.create("http://localhost:8081");
-                AtomicReference<String> sessionUrlRef = new AtomicReference<>();
+        private static MockWebServer mockWebServer;
 
-                // 1. Maintain SSE connection
+        @Autowired
+        private WebTestClient webTestClient;
+
+        @BeforeAll
+        public static void setUp() throws IOException {
+                mockWebServer = new MockWebServer();
+
+                String openApiJson = """
+                                {
+                                  "openapi": "3.0.1",
+                                  "info": { "title": "Biz API", "version": "1.0.0" },
+                                  "paths": {
+                                    "/api/calculate": {
+                                      "get": {
+                                        "operationId": "calculate",
+                                        "parameters": [
+                                          { "name": "a", "in": "query", "schema": { "type": "integer" } },
+                                          { "name": "b", "in": "query", "schema": { "type": "integer" } }
+                                        ],
+                                        "responses": { "200": { "description": "OK" } }
+                                      }
+                                    }
+                                  }
+                                }
+                                """;
+
+                // Response 1: OpenAPI scan
+                mockWebServer.enqueue(new MockResponse()
+                                .setBody(openApiJson)
+                                .addHeader("Content-Type", "application/json"));
+
+                // Response 2: Tool call response
+                mockWebServer.enqueue(new MockResponse()
+                                .setBody("{\"result\": 3}")
+                                .addHeader("Content-Type", "application/json"));
+
+                mockWebServer.start();
+        }
+
+        @DynamicPropertySource
+        static void configureProperties(DynamicPropertyRegistry registry) {
+                registry.add("target.api.url", () -> "http://localhost:" + mockWebServer.getPort());
+        }
+
+        @AfterAll
+        public static void tearDown() throws IOException {
+                if (mockWebServer != null) {
+                        mockWebServer.shutdown();
+                }
+        }
+
+        @Test
+        public void testMcpFlowWithAuthentication() throws InterruptedException {
+                String testToken = "Bearer test-token-123";
+                WebTestClient client = webTestClient.mutate()
+                                .responseTimeout(Duration.ofSeconds(15))
+                                .build();
+
+                AtomicReference<String> sessionUrlRef = new AtomicReference<>();
+                Sinks.Many<String> sseSink = Sinks.many().replay().all();
+
+                // 0. Establish SSE connection with Authorization header
                 Flux<String> sseFlux = client.get()
                                 .uri("/sse")
-                                .retrieve()
-                                .bodyToFlux(String.class)
+                                .header("Authorization", testToken)
+                                .accept(MediaType.TEXT_EVENT_STREAM)
+                                .exchange()
+                                .expectStatus().isOk()
+                                .returnResult(String.class)
+                                .getResponseBody()
+                                .share();
+
+                Disposable sseSubscription = sseFlux
                                 .doOnNext(line -> {
+                                        System.out.println("DEBUG SSE Line: " + line);
                                         if (line.contains("sessionId=")) {
                                                 String url = line.replace("data:", "").trim();
-                                                sessionUrlRef.set(url);
+                                                int msgIndex = url.indexOf("/mcp/message");
+                                                if (msgIndex != -1) {
+                                                        sessionUrlRef.set(url.substring(msgIndex));
+                                                }
                                         }
-                                        System.out.println("SSE Received: " + line);
-                                });
+                                        sseSink.tryEmitNext(line);
+                                })
+                                .subscribe();
 
-                sseFlux.subscribe();
-
-                // Wait for session URL
-                long start = System.currentTimeMillis();
-                while (sessionUrlRef.get() == null && System.currentTimeMillis() - start < 5000) {
-                        try {
-                                Thread.sleep(100);
-                        } catch (InterruptedException e) {
+                try {
+                        long start = System.currentTimeMillis();
+                        while (sessionUrlRef.get() == null && System.currentTimeMillis() - start < 5000) {
+                                try {
+                                        Thread.sleep(100);
+                                } catch (InterruptedException ignored) {
+                                }
                         }
-                }
 
-                String sessionUrl = sessionUrlRef.get();
-                if (sessionUrl == null) {
-                        throw new RuntimeException("Failed to get session URL from SSE");
-                }
+                        String sessionUrl = sessionUrlRef.get();
+                        assertThat(sessionUrl).isNotNull();
+                        System.out.println("Extracted Session URL: " + sessionUrl);
 
-                // 2. Initialize
-                Map<String, Object> init = Map.of(
-                                "jsonrpc", "2.0",
-                                "id", 1,
-                                "method", "initialize",
-                                "params", Map.of(
-                                                "protocolVersion", "2024-11-05",
-                                                "capabilities", Map.of(),
-                                                "clientInfo", Map.of("name", "test", "version", "1")));
+                        // 1. Initialize
+                        Map<String, Object> init = Map.of(
+                                        "jsonrpc", "2.0",
+                                        "id", 1,
+                                        "method", "initialize",
+                                        "params", Map.of(
+                                                        "protocolVersion", "2024-11-05",
+                                                        "capabilities", Map.of(),
+                                                        "clientInfo", Map.of("name", "test", "version", "1")));
 
-                client.post()
-                                .uri(sessionUrl)
-                                .bodyValue(init)
-                                .retrieve()
-                                .toBodilessEntity()
-                                .block(Duration.ofSeconds(5));
-                System.out.println("Initialize Sent.");
+                        client.post().uri(sessionUrl).bodyValue(init).exchange().expectStatus().isOk().expectBody()
+                                        .consumeWith(b -> {
+                                        });
 
-                // 3. List Tools
-                Map<String, Object> listTools = Map.of(
-                                "jsonrpc", "2.0",
-                                "id", 2,
-                                "method", "tools/list",
-                                "params", Map.of());
+                        String initResponse = sseSink.asFlux()
+                                        .filter(l -> l.contains("\"id\":1"))
+                                        .blockFirst(Duration.ofSeconds(10));
+                        assertThat(initResponse).isNotNull().contains("\"result\"");
 
-                client.post()
-                                .uri(sessionUrl)
-                                .bodyValue(listTools)
-                                .retrieve()
-                                .toBodilessEntity()
-                                .block(Duration.ofSeconds(5));
-                System.out.println("List Tools Sent.");
+                        // 2. Initialized Notification
+                        Map<String, Object> initialized = Map.of(
+                                        "jsonrpc", "2.0",
+                                        "method", "notifications/initialized");
 
-                // 4. Call Tool (wait a bit for SSE to catch up)
-                try {
-                        Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                }
+                        client.post().uri(sessionUrl).bodyValue(initialized).exchange().expectStatus().isOk()
+                                        .expectBody().consumeWith(b -> {
+                                        });
 
-                Map<String, Object> call = Map.of(
-                                "jsonrpc", "2.0",
-                                "id", 3,
-                                "method", "tools/call",
-                                "params", Map.of(
-                                                "name", "test_tool",
-                                                "arguments", Map.of()));
+                        // 3. List Tools
+                        Map<String, Object> listTools = Map.of(
+                                        "jsonrpc", "2.0",
+                                        "id", 2,
+                                        "method", "tools/list",
+                                        "params", Map.of());
 
-                client.post()
-                                .uri(sessionUrl)
-                                .bodyValue(call)
-                                .retrieve()
-                                .toBodilessEntity()
-                                .block(Duration.ofSeconds(5));
-                System.out.println("Tool Call Sent.");
+                        client.post().uri(sessionUrl).bodyValue(listTools).exchange().expectStatus().isOk().expectBody()
+                                        .consumeWith(b -> {
+                                        });
 
-                try {
-                        Thread.sleep(2000);
-                } catch (InterruptedException e) {
+                        String listResponse = sseSink.asFlux()
+                                        .filter(l -> l.contains("\"id\":2"))
+                                        .blockFirst(Duration.ofSeconds(10));
+                        assertThat(listResponse).isNotNull().contains("calculate_sum");
+
+                        // 4. Call Tool (This is where token should be forwarded)
+                        Map<String, Object> call = Map.of(
+                                        "jsonrpc", "2.0",
+                                        "id", 3,
+                                        "method", "tools/call",
+                                        "params", Map.of(
+                                                        "name", "calculate_sum",
+                                                        "arguments", Map.of("a", 1, "b", 2)));
+
+                        // Request 1 was OpenAPI scan during startup
+                        // Request 2 will be the actual tool call
+                        client.post()
+                                        .uri(sessionUrl)
+                                        .header("Authorization", testToken) // Token sent with the POST message
+                                        .bodyValue(call)
+                                        .exchange()
+                                        .expectStatus().isOk()
+                                        .expectBody().consumeWith(b -> {
+                                        });
+
+                        String callResponse = sseSink.asFlux()
+                                        .filter(l -> l.contains("\"id\":3"))
+                                        .blockFirst(Duration.ofSeconds(10));
+
+                        assertThat(callResponse).isNotNull().contains("result=3");
+
+                        // --- TOKEN FORWARDING VERIFICATION ---
+                        // Take the requests from mock server
+                        mockWebServer.takeRequest(1, TimeUnit.SECONDS); // Skip OpenAPI scan request
+                        RecordedRequest toolRequest = mockWebServer.takeRequest(5, TimeUnit.SECONDS);
+
+                        assertThat(toolRequest).isNotNull();
+                        System.out.println("MockWebServer received request: " + toolRequest.getMethod() + " "
+                                        + toolRequest.getPath());
+                        System.out.println("MockWebServer received headers: \n" + toolRequest.getHeaders());
+                        System.out.println("AUTH_TOKEN_VALUE_RECEIVED: " + toolRequest.getHeader("Authorization"));
+
+                        assertThat(toolRequest.getHeader("Authorization")).isEqualTo(testToken);
+                        System.out.println("Successfully verified Authorization header forwarding!");
+
+                } finally {
+                        sseSubscription.dispose();
                 }
         }
 }

@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import com.example.mcpserversidecar.AuthenticationFilter;
 
 import java.util.List;
 import java.util.Map;
@@ -44,24 +45,30 @@ public class DynamicToolRegistry {
 
     private Mono<McpSchema.CallToolResult> executeToolCall(OpenApiScannerService.ToolDefinition def,
             McpSchema.CallToolRequest request) {
-        String url = def.path().startsWith("/") ? "http://127.0.0.1:8080" + def.path() : def.path();
+        String url = def.path().startsWith("/") ? scannerService.getTargetApiUrl() + def.path() : def.path();
         log.info("執行工具呼叫: {} {}, 參數: {}", def.method(), url, request.arguments());
 
         if ("POST".equalsIgnoreCase(def.method())) {
-            return webClient.post()
-                    .uri(url)
-                    .bodyValue(request.arguments())
-                    .retrieve()
-                    .bodyToMono(Object.class)
-                    .map(response -> McpSchema.CallToolResult.builder()
-                            .addTextContent(response.toString())
-                            .build())
-                    .onErrorResume(e -> Mono.just(McpSchema.CallToolResult.builder()
-                            .addTextContent("Error: " + e.getMessage())
-                            .isError(true)
-                            .build()));
+            return Mono.deferContextual(ctx -> {
+                String authHeader = ctx.getOrDefault(AuthenticationFilter.AUTH_TOKEN_KEY, null);
+                var requestSpec = webClient.post().uri(url).bodyValue(request.arguments());
+                if (authHeader != null) {
+                    requestSpec.header("Authorization", authHeader);
+                }
+                return requestSpec
+                        .retrieve()
+                        .bodyToMono(Object.class)
+                        .map(response -> McpSchema.CallToolResult.builder()
+                                .addTextContent(response.toString())
+                                .build())
+                        .onErrorResume(e -> Mono.just(McpSchema.CallToolResult.builder()
+                                .addTextContent("Error: " + e.getMessage())
+                                .isError(true)
+                                .build()));
+            });
         } else {
-            return Mono.defer(() -> {
+            return Mono.deferContextual(ctx -> {
+                String authHeader = ctx.getOrDefault(AuthenticationFilter.AUTH_TOKEN_KEY, null);
                 String targetUrl = url;
                 if (request.arguments() != null) {
                     StringBuilder sb = new StringBuilder(url);
@@ -80,8 +87,13 @@ public class DynamicToolRegistry {
                     }
                     targetUrl = sb.toString();
                 }
-                return webClient.get()
-                        .uri(targetUrl)
+
+                var requestSpec = webClient.get().uri(targetUrl);
+                if (authHeader != null) {
+                    requestSpec.header("Authorization", authHeader);
+                }
+
+                return requestSpec
                         .retrieve()
                         .bodyToMono(Object.class)
                         .map(response -> McpSchema.CallToolResult.builder()

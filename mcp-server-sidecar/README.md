@@ -35,7 +35,18 @@ docker build -t mcp-server-sidecar:native -f Dockerfile.native .
 
 ## MCP 說明
 - **Transport**: `SSE` (Server-Sent Events)
-- **Endpoint**: `http://localhost:8081/mcp/sse`
+- **SSE 連接埠**: `http://localhost:8081/sse`
+- **消息傳遞埠**: `http://localhost:8081/mcp/message`
+
+## 📖 API 文件 (OpenAPI)
+
+本專案集成了 Swagger UI，方便開發者與程式查閱目前 Sidecar 曝露的工具。
+
+*   **人機互動 Web 介面 (Swagger UI)**: [http://localhost:8081/swagger-ui.html](http://localhost:8081/swagger-ui.html)
+*   **程式讀取用 JSON 定義**: [http://localhost:8081/v3/api-docs](http://localhost:8081/v3/api-docs)
+
+> [!TIP]
+> Swagger UI 的首頁描述中會動態顯示目前已發現並映射的工具清單。
 
 ---
 
@@ -75,9 +86,9 @@ npx @modelcontextprotocol/inspector --transport sse --server-url http://localhos
 為了將此 Sidecar 投入嚴格的生產環境，以下是計畫中與建議的技術強化方向：
 
 - [x] **⚡️ WebFlux 反應式架構**：已完成。支援高併發與非阻塞通訊。
-- [ ] **🛡 安全性增強 (Security)**
+- [x] **🛡 安全性增強 (Security)**
+    - [x] **API 身份驗證轉發**：已完成。支援將 MCP Client 的 `Authorization` 標頭自動轉發至下游 API。
     - [ ] **動態 CORS 配置**：將目前的 `addAllowedOrigin("*")` 改為從環境變數注入。
-    - [ ] **API 身份驗證**：實作 API Key 或 JWT 驗證，防止未授權存取。
     - [ ] **K8s NetworkPolicy**：在網路層級鎖定僅允許特定 Pod 連線。
     - [ ] **Service Mesh (Istio)**：利用 mTLS 與 AuthorizatonPolicy 實現加密通訊。
 - [ ] **🚀 效能優化 (Performance)**

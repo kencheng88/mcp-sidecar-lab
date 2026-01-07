@@ -32,11 +32,21 @@ public class OpenApiScannerService {
     @Value("${target.api.url}")
     private String targetApiUrl;
 
+    private List<ToolDefinition> cachedTools = new ArrayList<>();
+
     public OpenApiScannerService(WebClient.Builder webClientBuilder, ObjectMapper objectMapper,
             ResourceLoader resourceLoader) {
         this.webClient = webClientBuilder.build();
         this.objectMapper = objectMapper;
         this.resourceLoader = resourceLoader;
+    }
+
+    public String getTargetApiUrl() {
+        return targetApiUrl;
+    }
+
+    public List<ToolDefinition> getCachedTools() {
+        return Collections.unmodifiableList(cachedTools);
     }
 
     public record ToolDefinition(
@@ -82,6 +92,7 @@ public class OpenApiScannerService {
         } catch (Exception e) {
             log.error("掃描 OpenAPI 失敗: {}", e.getMessage(), e);
         }
+        this.cachedTools = results;
         return results;
     }
 
