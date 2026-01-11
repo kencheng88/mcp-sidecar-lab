@@ -14,17 +14,18 @@ public class McpConfig {
          * 為了讓 MCP Inspector (通常運行在 http://localhost:5173) 能夠跨網域存取 SSE 端點。
          * 在生產環境 (Production) 中，建議收緊 AllowedOrigins，或僅允許特定的 Gateway 存取。
          */
-        @Bean
-        public CorsWebFilter corsWebFilter() {
-                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-                CorsConfiguration config = new CorsConfiguration();
-                config.setAllowCredentials(false);
-                config.addAllowedOrigin("*");
-                config.addAllowedHeader("*");
-                config.addAllowedMethod("*");
-                config.addExposedHeader("*");
-                config.setMaxAge(3600L); // 快取預檢請求
-                source.registerCorsConfiguration("/**", config);
-                return new CorsWebFilter(source);
-        }
+        // @Bean
+        // public CorsWebFilter corsWebFilter() {
+        // UrlBasedCorsConfigurationSource source = new
+        // UrlBasedCorsConfigurationSource();
+        // CorsConfiguration config = new CorsConfiguration();
+        // config.setAllowCredentials(false);
+        // config.addAllowedOrigin("*");
+        // config.addAllowedHeader("*");
+        // config.addAllowedMethod("*");
+        // config.addExposedHeader("*");
+        // config.setMaxAge(3600L); // 快取預檢請求
+        // source.registerCorsConfiguration("/**", config);
+        // return new CorsWebFilter(source);
+        // }
 }

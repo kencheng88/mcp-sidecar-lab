@@ -69,9 +69,11 @@ public class OpenApiScannerService {
 
             SwaggerParseResult parseResult = new OpenAPIV3Parser().readContents(openApiJson);
             OpenAPI openAPI = parseResult.getOpenAPI();
+            log.info("OpenAPI 定義已獲取: {}", openAPI.getInfo().getTitle());
 
             // 2. 獲取 Mapping 配置
             Map<String, Map<String, Object>> mappings = loadMappings();
+            log.info("Mapping 配置已獲取: {}", mappings.size());
 
             // 3. 遍歷 Paths 並轉換
             if (openAPI.getPaths() != null) {
@@ -93,6 +95,7 @@ public class OpenApiScannerService {
             log.error("掃描 OpenAPI 失敗: {}", e.getMessage(), e);
         }
         this.cachedTools = results;
+        log.debug("掃描 OpenAPI 完成，發現 {} 個工具", results.size());
         return results;
     }
 
@@ -106,15 +109,45 @@ public class OpenApiScannerService {
 
         McpSchema.JsonSchema inputSchema = OpenApiToMcpMapper.mapOperationToInputSchema(operation);
 
-        // 注入 Mapping 中的參數描述
+        // 提取 Output Schema 並附加到描述中，讓 LLM 了解返回格式
+        Map<String, Object> outputSchema = OpenApiToMcpMapper.mapOperationToOutputSchema(operation);
+        if (outputSchema != null) {
+            String returnsInfo = "\nReturns: " + outputSchema.toString();
+            if (description == null) {
+                description = returnsInfo.trim();
+            } else {
+                description += returnsInfo;
+            }
+        }
+
+        // 注入 Mapping 中的參數詳細描述或型別
         if (mapping.containsKey("parameters")) {
-            Map<String, String> paramMappings = (Map<String, String>) mapping.get("parameters");
+            Object parametersObj = mapping.get("parameters");
             Map<String, Object> properties = (Map<String, Object>) inputSchema.properties();
+
             if (properties != null) {
-                for (Map.Entry<String, String> entry : paramMappings.entrySet()) {
-                    if (properties.containsKey(entry.getKey())) {
-                        Map<String, Object> fieldSchema = (Map<String, Object>) properties.get(entry.getKey());
-                        fieldSchema.put("description", entry.getValue());
+                if (parametersObj instanceof Map) {
+                    Map<String, Object> paramMappings = (Map<String, Object>) parametersObj;
+                    for (Map.Entry<String, Object> entry : paramMappings.entrySet()) {
+                        String paramName = entry.getKey();
+                        if (properties.containsKey(paramName)) {
+                            Map<String, Object> fieldSchema = (Map<String, Object>) properties.get(paramName);
+                            Object val = entry.getValue();
+
+                            if (val instanceof String) {
+                                // 舊版格式：直接是描述字串
+                                fieldSchema.put("description", val);
+                            } else if (val instanceof Map) {
+                                // 新版格式：包含 type, description 等
+                                Map<String, Object> valMap = (Map<String, Object>) val;
+                                if (valMap.containsKey("description")) {
+                                    fieldSchema.put("description", valMap.get("description"));
+                                }
+                                if (valMap.containsKey("type")) {
+                                    fieldSchema.put("type", valMap.get("type"));
+                                }
+                            }
+                        }
                     }
                 }
             }

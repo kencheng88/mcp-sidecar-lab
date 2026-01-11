@@ -34,9 +34,12 @@ docker build -t mcp-server-sidecar:native -f Dockerfile.native .
 服務將啟動於 `http://localhost:8081`。
 
 ## MCP 說明
-- **Transport**: `SSE` (Server-Sent Events)
-- **SSE 連接埠**: `http://localhost:8081/sse`
-- **消息傳遞埠**: `http://localhost:8081/mcp/message`
+- **Transport**: `Streamable HTTP`
+- **MCP 端點**: `http://localhost:8081/mcp`
+- **Server Type**: `ASYNC`
+
+> [!NOTE]
+> 本專案使用 Streamable HTTP 作為 MCP Transport，支援 HTTP POST/GET 請求並可選用 SSE 串流。
 
 ## 📖 API 文件 (OpenAPI)
 
@@ -60,24 +63,63 @@ docker build -t mcp-server-sidecar:native -f Dockerfile.native .
     *   讀取 `src/main/resources/mcp-mapping.json`。
     *   **優先權 1**：如果映射檔有定義，則使用映射檔中的 `toolName`、描述與參數說明。
     *   **優先權 2**（退而求其次）：如果映射檔未定義，則嘗試抓取 OpenAPI 中的 `@Operation` 與 `@Parameter` 註解內容。
-3.  **自動註冊**：利用 `DynamicToolRegistry` 將解析出的規格轉化為 Spring AI 標準的 `SyncToolSpecification`。
+3.  **自動註冊**：利用 `DynamicToolRegistry` 將解析出的規格轉化為 Spring AI 標準的 `AsyncToolSpecification`。
 
 ### 2. 優勢
 *   **零代碼維護**：當 Legacy 系統新增 API 時，Sidecar 只要重啟即可自動識別，無需撰寫 Java 代碼。
 *   **AI 友好化**：透過 `mcp-mapping.json`，您可以將工程化的 API 名稱 (如 `getBizInfo`) 改為 AI 更易理解的語法 (如 `get_enterprise_info`)。
 
+### 3. 圖片處理
+*   支援後端 API 回傳的圖片（`image/*` Content-Type）
+*   自動轉換為 Base64 編碼的 `ImageContent`
+*   WebClient 設定 16MB buffer 以處理大型圖片
+
+---
+
 ## 🧪 測試與驗證
 
-### 1. 使用 MCP Inspector
-這是最推薦的測試方式：
+### 1. 整合測試
 ```bash
-npx @modelcontextprotocol/inspector --transport sse --server-url http://localhost:8081/mcp/sse
+# 執行 MCP Client 整合測試（需先啟動 biz 服務和 sidecar 服務）
+mvn test -Dtest=McpClientIntegrationTest
 ```
-*   進入 `http://localhost:5173` 後點選 **"List Tools"** 即可看到動態註冊的工具。
 
-### 2. 目前已啟用的工具 (範例)
+### 2. 使用 MCP Inspector
+```bash
+npx @modelcontextprotocol/inspector
+```
+連接到 `http://localhost:8081/mcp` 後點選 **"List Tools"** 即可看到動態註冊的工具。
+
+### 3. 目前已啟用的工具 (範例)
 *   **`calculate_sum`**: 執行加法運算 (映射自 `/api/calculate`)。
 *   **`get_enterprise_info`**: 取得企業等級資訊 (映射自 `/api/business-info`)。
+*   **`get_manga_image`**: 取得漫畫圖片 (映射自 `/api/manga/image`)。
+
+---
+
+## 📁 專案結構
+
+```
+src/
+├── main/java/com/example/mcpserversidecar/
+│   ├── McpConfig.java           # CORS 配置
+│   ├── AuthenticationFilter.java # 認證轉發 Filter
+│   └── service/
+│       ├── DynamicToolRegistry.java    # 動態工具註冊與 API 呼叫
+│       └── OpenApiScannerService.java  # OpenAPI 掃描與映射
+├── main/resources/
+│   ├── application.properties   # Server 配置
+│   └── mcp-mapping.json         # 工具語義映射
+└── test/
+    ├── java/.../McpClientIntegrationTest.java  # 整合測試
+    └── resources/application.yml               # 測試配置
+
+docs/
+├── adr/                         # 架構決策記錄
+│   └── 001-response-handling-strategy.md
+└── tracking/                    # 問題追蹤記錄
+    └── TRACK-001-image-buffer-limit.md
+```
 
 ---
 
@@ -86,12 +128,14 @@ npx @modelcontextprotocol/inspector --transport sse --server-url http://localhos
 為了將此 Sidecar 投入嚴格的生產環境，以下是計畫中與建議的技術強化方向：
 
 - [x] **⚡️ WebFlux 反應式架構**：已完成。支援高併發與非阻塞通訊。
-- [x] **🛡 安全性增強 (Security)**
+- [x] **� 圖片處理支援**：已完成。支援大型圖片的 Base64 編碼傳輸。
+- [x] **�🛡 安全性增強 (Security)**
     - [x] **API 身份驗證轉發**：已完成。支援將 MCP Client 的 `Authorization` 標頭自動轉發至下游 API。
     - [ ] **動態 CORS 配置**：將目前的 `addAllowedOrigin("*")` 改為從環境變數注入。
     - [ ] **K8s NetworkPolicy**：在網路層級鎖定僅允許特定 Pod 連線。
     - [ ] **Service Mesh (Istio)**：利用 mTLS 與 AuthorizatonPolicy 實現加密通訊。
 - [ ] **🚀 效能優化 (Performance)**
+    - [ ] **URL 引用模式**：對於大型圖片，考慮改為回傳 URL 引用而非直接嵌入 Base64。
     - [ ] **Streaming Discovery**：優化巨型系統的 OpenAPI 掃描流程為全異步。
     - [ ] **連線池調優**：優化 `WebClient` 的 Connection Pool 配置。
 - [ ] **📊 可觀測性 (Observability)**

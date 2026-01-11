@@ -1,0 +1,24 @@
+# MCP Client 測試配置
+
+spring:
+  ai:
+    mcp:
+      client:
+        enabled: true
+        type: SYNC
+        streamable-http:
+          connections:
+            sidecar-server:
+              url: http://localhost:8081
+        request-timeout: 30s
+      # 停用 Server
+      server:
+        enabled: false
+
+  main:
+    allow-bean-definition-overriding: true
+
+# 隨意的 target.api.url 以避免啟動時掃描失敗
+target:
+  api:
+    url: http://localhost:9999

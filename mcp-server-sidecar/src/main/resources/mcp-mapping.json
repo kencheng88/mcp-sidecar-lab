@@ -11,7 +11,23 @@
         {
             "operationId": "calculate",
             "toolName": "calculate_sum",
-            "description": "將兩個數字相加，用於基礎運算。"
+            "description": "將兩個數字相加，用於基礎運算。",
+            "parameters": {
+                "a": {
+                    "type": "integer",
+                    "description": "第一個數字"
+                },
+                "b": {
+                    "type": "integer",
+                    "description": "第二個數字"
+                }
+            }
+        },
+        {
+            "operationId": "getMangaImage",
+            "toolName": "get_manga_image",
+            "description": "獲取漫畫圖片。",
+            "parameters": {}
         }
     ]
 }

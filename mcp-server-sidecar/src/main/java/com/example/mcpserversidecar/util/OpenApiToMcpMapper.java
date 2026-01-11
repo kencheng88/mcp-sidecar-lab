@@ -5,6 +5,8 @@ import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.responses.ApiResponses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,6 +16,9 @@ public class OpenApiToMcpMapper {
 
     private static final Logger log = LoggerFactory.getLogger(OpenApiToMcpMapper.class);
 
+    /**
+     * 將 OpenAPI 的 Operation 轉換為 MCP 的 Input Schema (請求參數)
+     */
     public static McpSchema.JsonSchema mapOperationToInputSchema(Operation operation) {
         Map<String, Object> properties = new HashMap<>();
         List<String> required = new ArrayList<>();
@@ -32,7 +37,7 @@ public class OpenApiToMcpMapper {
             }
         }
 
-        // 2. 處理 Request Body
+        // 2. 處理 Request Body (主要針對 POST/PUT)
         if (operation.getRequestBody() != null && operation.getRequestBody().getContent() != null) {
             Content content = operation.getRequestBody().getContent();
             if (content.containsKey("application/json")) {
@@ -57,6 +62,32 @@ public class OpenApiToMcpMapper {
                 null);
     }
 
+    /**
+     * 從 OpenAPI Operation 中提取成功回應 (200 OK) 的 Schema 描述
+     */
+    public static Map<String, Object> mapOperationToOutputSchema(Operation operation) {
+        ApiResponses responses = operation.getResponses();
+        if (responses == null)
+            return null;
+
+        // 優先找 200, 其次找 201
+        ApiResponse successResponse = responses.get("200");
+        if (successResponse == null) {
+            successResponse = responses.get("201");
+        }
+
+        if (successResponse != null && successResponse.getContent() != null) {
+            Content content = successResponse.getContent();
+            if (content.containsKey("application/json")) {
+                return mapSchemaToMap(content.get("application/json").getSchema());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 遞迴將 OpenAPI Schema 轉換為 Map 格式 (供裝飾 Tool Description 或構建 Input Schema 使用)
+     */
     private static Map<String, Object> mapSchemaToMap(Schema<?> schema) {
         Map<String, Object> map = new HashMap<>();
         if (schema == null) {
@@ -65,14 +96,19 @@ public class OpenApiToMcpMapper {
         }
 
         String type = schema.getType();
-        // OpenAPI "integer" -> JSON Schema "integer"
-        // OpenAPI "number" -> JSON Schema "number"
+        // OpenAPI 類型映射
         map.put("type", type != null ? type : "string");
 
         if (schema.getDescription() != null) {
             map.put("description", schema.getDescription());
         }
 
+        // 處理 Array 類型 (遞迴轉換 items)
+        if ("array".equals(type) && schema.getItems() != null) {
+            map.put("items", mapSchemaToMap(schema.getItems()));
+        }
+
+        // 處理 Object 類型屬性
         if (schema.getProperties() != null) {
             Map<String, Object> props = new HashMap<>();
             for (Map.Entry<String, Schema> entry : ((Map<String, Schema>) schema.getProperties()).entrySet()) {
